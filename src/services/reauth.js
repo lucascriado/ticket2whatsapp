@@ -1,9 +1,5 @@
-const os = require('os');
-const path = require('path');
 const puppeteer = require('puppeteer');
 const { getLastUid, fetchVerificationCode } = require('./gmail');
-
-const tmp = (name) => path.join(os.tmpdir(), name);
 
 // We use jwt.ms as redirect_uri so the B2C template's bot-check
 // (which blocks 'portal-usuario' URIs) never fires.
@@ -60,8 +56,9 @@ async function reauth() {
       ).then(() => true),
       page.waitForSelector('#VerificationCode', { timeout: 15000 }).then(() => false),
     ]).catch(async () => {
-      await page.screenshot({ path: tmp('reauth-debug.png'), fullPage: true });
-      console.error('[Reauth] Nenhum seletor de MFA encontrado — screenshot salvo em /tmp/reauth-debug.png');
+      const url = page.url();
+      const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) ?? '');
+      console.error(`[Reauth] Nenhum seletor de MFA encontrado. url=${url} body="${bodyText}"`);
       throw new Error('Página de MFA não reconhecida');
     });
 
@@ -78,8 +75,9 @@ async function reauth() {
     }
 
     await page.waitForSelector('#VerificationCode', { timeout: 60000 }).catch(async (err) => {
-      await page.screenshot({ path: tmp('reauth-verification.png'), fullPage: true });
-      console.error('[Reauth] #VerificationCode não apareceu — screenshot em /tmp/reauth-verification.png');
+      const url = page.url();
+      const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) ?? '');
+      console.error(`[Reauth] #VerificationCode não apareceu. url=${url} body="${bodyText}"`);
       throw err;
     });
 
