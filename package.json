@@ -1,5 +1,5 @@
 {
-  "name": "ticket2zap",
+  "name": "vr-ticket-for-whatsapp",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -9,16 +9,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lucascriado/ticket2zap.git"
+    "url": "git+https://github.com/lucascriado/vr-ticket-for-whatsapp.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/lucascriado/ticket2zap/issues"
+    "url": "https://github.com/lucascriado/vr-ticket-for-whatsapp/issues"
   },
-  "homepage": "https://github.com/lucascriado/ticket2zap#readme",
+  "homepage": "https://github.com/lucascriado/vr-ticket-for-whatsapp#readme",
   "dependencies": {
     "axios": "^1.15.2",
     "dotenv": "^17.4.2",

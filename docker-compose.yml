@@ -24,7 +24,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      AUTHENTICATION_API_KEY: ticket2zap_key
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
       AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
       DATABASE_ENABLED: "true"
       DATABASE_PROVIDER: postgresql
@@ -46,6 +46,17 @@ services:
     depends_on:
       - postgres
       - redis
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vr-ticket-for-whatsapp
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - evolution-api
 
 volumes:
   postgres_data:
