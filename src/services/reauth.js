@@ -104,7 +104,12 @@ async function reauth() {
         return false;
       },
       { timeout: 30000 },
-    ).then((handle) => handle.jsonValue());
+    ).then((handle) => handle.jsonValue()).catch(async (err) => {
+      const url = page.url();
+      const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) ?? '');
+      console.error(`[Reauth] Redirect para jwt.ms não ocorreu. url=${url} body="${bodyText}"`);
+      throw err;
+    });
 
     const fragment = finalUrl.split('#')[1] ?? '';
     idToken = new URLSearchParams(fragment).get('id_token');

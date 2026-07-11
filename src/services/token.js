@@ -15,6 +15,20 @@ const state = {
   expiresAt: 0,
 };
 
+// Evita duas sessões de login (Puppeteer) concorrentes disputando o mesmo
+// código OTP do Gmail — midnightReauth e um reauth disparado por request
+// podem coincidir, e chamadas concorrentes reaproveitam a mesma promise.
+let reauthPromise = null;
+
+function reauthOnce() {
+  if (!reauthPromise) {
+    reauthPromise = reauth().finally(() => {
+      reauthPromise = null;
+    });
+  }
+  return reauthPromise;
+}
+
 function persistEnvKey(key, value) {
   try {
     let content = '';
@@ -110,7 +124,7 @@ async function getAccessToken() {
     if (!needsReauth) throw err;
 
     console.log(`[TokenService] Silent renewal inviável (${err.message}) — iniciando reauth automático...`);
-    const { idToken, ssoCookie } = await reauth();
+    const { idToken, ssoCookie } = await reauthOnce();
 
     const rawPayload = idToken.split('.')[1] ?? '';
     const payload = JSON.parse(Buffer.from(rawPayload, 'base64url').toString());
@@ -131,7 +145,7 @@ async function getAccessToken() {
 
 async function forceReauth() {
   console.log('[TokenService] Iniciando reauth forçado...');
-  const { idToken, ssoCookie } = await reauth();
+  const { idToken, ssoCookie } = await reauthOnce();
 
   const rawPayload = idToken.split('.')[1] ?? '';
   const payload = JSON.parse(Buffer.from(rawPayload, 'base64url').toString());
