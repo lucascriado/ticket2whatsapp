@@ -47,10 +47,10 @@ router.post('/', async (req, res) => {
     ''
   ).trim().toLowerCase();
 
-  console.log(`[Webhook] id=${messageId} from=${remoteJid} text="${text}"`);
-
   if (!remoteJid || remoteJid.endsWith('@lid')) return;
   if (text !== '/ticket saldo' && text !== '/ticket extrato') return;
+
+  console.log(`[Webhook] id=${messageId} from=${remoteJid} comando="${text}"`);
 
   if (messageId) {
     if (processedIds.has(messageId)) return;
