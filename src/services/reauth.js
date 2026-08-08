@@ -14,10 +14,28 @@ async function reauth() {
 
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-blink-features=AutomationControlled',
+    ],
   });
 
   const page = await browser.newPage();
+
+  // Sem isso o B2C detecta a automação (navigator.webdriver, UA "HeadlessChrome")
+  // e engole o submit do login: o clique em #next não dispara requisição nenhuma
+  // e o fluxo trava esperando #VerificationCode até dar timeout.
+  await page.setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  );
+  await page.setViewport({ width: 1366, height: 768 });
+  await page.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'pt', 'en-US', 'en'] });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+    window.chrome = { runtime: {} };
+  });
 
   const params = new URLSearchParams({
     p: B2C_POLICY,
@@ -37,11 +55,11 @@ async function reauth() {
 
     // Preenche email no campo customizado do template
     await page.waitForSelector('#login', { timeout: 20000 });
-    await page.type('#login', process.env.TICKET_EMAIL ?? '');
+    await page.type('#login', process.env.TICKET_EMAIL ?? '', { delay: 50 });
 
     // Preenche senha (injetada pelo B2C no #api)
     await page.waitForSelector('#password', { timeout: 20000 });
-    await page.type('#password', process.env.TICKET_PASSWORD ?? '');
+    await page.type('#password', process.env.TICKET_PASSWORD ?? '', { delay: 50 });
 
     // Clica no botão next (injetado pelo B2C)
     await page.waitForSelector('#next', { timeout: 10000 });
