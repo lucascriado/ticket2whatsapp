@@ -8,6 +8,7 @@ const B2C_TENANT = process.env.B2C_TENANT ?? '';
 const B2C_POLICY = process.env.B2C_POLICY ?? '';
 const CLIENT_ID = process.env.B2C_CLIENT_ID ?? '';
 const AUTHORIZE_URL = `https://ticketmobile.b2clogin.com/${B2C_TENANT}/oauth2/v2.0/authorize`;
+const MFA_EMAIL_RADIO = '#extension_mfaByPhoneOrEmail-Login_email';
 
 async function reauth() {
   console.log('[Reauth] Iniciando login automático via Puppeteer...');
@@ -81,13 +82,30 @@ async function reauth() {
     });
 
     if (mfaOptionVisible) {
-      await page.evaluate(() => {
-        const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim().includes('Por e-mail'));
-        btn?.click();
-      });
-      await page.waitForNetworkIdle({ timeout: 10000 }).catch(() => {});
-      await new Promise(r => setTimeout(r, 2000));
-      console.log('[Reauth] MFA por e-mail solicitado, aguardando código no Gmail...');
+      // O "Por e-mail" do template é um <button type="submit">: clicar nele envia o
+      // form com o radio de MFA ainda vazio, e o B2C só re-renderiza a mesma tela —
+      // nenhum e-mail é disparado e o fluxo trava esperando #VerificationCode.
+      // Quem de fato seleciona a opção é o radio do B2C; setEmailMFA() (do template)
+      // marca o radio e submete pelo #continue.
+      await page.waitForSelector(MFA_EMAIL_RADIO, { timeout: 30000 });
+
+      const via = await page.evaluate((radioSel) => {
+        try {
+          // eval direto: a função é global no escopo da página, mas não em window
+          eval('setEmailMFA()');
+          return 'setEmailMFA';
+        } catch {
+          const radio = document.querySelector(radioSel);
+          if (!radio) return null;
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          document.getElementById('continue')?.click();
+          return 'radio+continue';
+        }
+      }, MFA_EMAIL_RADIO);
+
+      if (!via) throw new Error('Não foi possível selecionar o MFA por e-mail');
+      console.log(`[Reauth] MFA por e-mail solicitado (via ${via}), aguardando código no Gmail...`);
     } else {
       console.log('[Reauth] Campo de código já visível (MFA enviado automaticamente), aguardando código no Gmail...');
     }
