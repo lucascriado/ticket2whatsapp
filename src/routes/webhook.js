@@ -5,6 +5,19 @@ const { sendMessage } = require('../services/evolution');
 const router = Router();
 const processedIds = new Set();
 
+// Quem pode consultar o cartão. Sem a variável o bot responde a qualquer um —
+// aceitável enquanto a instância roda no número pessoal, perigoso quando ela
+// passa para um número dedicado, que acaba sendo compartilhado.
+const PERMITIDOS = (process.env.ALLOWED_NUMBERS ?? '')
+  .split(',')
+  .map((n) => n.replace(/\D/g, ''))
+  .filter(Boolean);
+
+function autorizado(jid) {
+  if (!PERMITIDOS.length) return true;
+  return PERMITIDOS.includes(jid.split('@')[0].replace(/\D/g, ''));
+}
+
 function formatStatement(items) {
   if (!items.length) return '*🧾 Extrato Ticket Restaurante*\n\nNenhuma movimentação encontrada.';
 
@@ -49,6 +62,11 @@ router.post('/', async (req, res) => {
 
   if (!remoteJid || remoteJid.endsWith('@lid')) return;
   if (text !== '/ticket saldo' && text !== '/ticket extrato') return;
+
+  if (!autorizado(remoteJid)) {
+    console.warn(`[Webhook] Recusado: ${remoteJid} fora de ALLOWED_NUMBERS`);
+    return;
+  }
 
   console.log(`[Webhook] id=${messageId} from=${remoteJid} comando="${text}"`);
 
