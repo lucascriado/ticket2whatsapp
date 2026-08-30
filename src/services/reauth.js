@@ -16,6 +16,17 @@ const MFA_EMAIL_RADIO = '#extension_mfaByPhoneOrEmail-Login_email';
 // conta ainda caia no template velho.
 const LOGIN_FIELD = '#signInName, #login';
 
+// O mesmo template renomeou o controle de verificação: os botões passaram de
+// signinEmailVerificationControl_* para signinCpfVerificationControl_*. A classe
+// é a âncora mais estável — sobrevive à próxima renomeação do controle —, e os
+// dois ids ficam como reserva. O botão nasce oculto e só aparece depois que o
+// código é digitado, daí o { visible: true }.
+const VERIFY_CODE_BUTTON = [
+  'button.verifyCode',
+  '#signinCpfVerificationControl_but_verify_code',
+  '#signinEmailVerificationControl_but_verify_code',
+].join(', ');
+
 async function reauth() {
   console.log('[Reauth] Iniciando login automático via Puppeteer...');
 
@@ -132,8 +143,8 @@ async function reauth() {
 
     await page.type('#VerificationCode', code);
 
-    await page.waitForSelector('#signinEmailVerificationControl_but_verify_code', { timeout: 5000 });
-    await page.click('#signinEmailVerificationControl_but_verify_code');
+    await page.waitForSelector(VERIFY_CODE_BUTTON, { visible: true, timeout: 15000 });
+    await page.click(VERIFY_CODE_BUTTON);
 
     try {
       await page.waitForSelector('#continue:not(.d-none)', { timeout: 15000 });
