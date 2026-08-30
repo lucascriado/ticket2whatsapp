@@ -10,6 +10,12 @@ const CLIENT_ID = process.env.B2C_CLIENT_ID ?? '';
 const AUTHORIZE_URL = `https://ticketmobile.b2clogin.com/${B2C_TENANT}/oauth2/v2.0/authorize`;
 const MFA_EMAIL_RADIO = '#extension_mfaByPhoneOrEmail-Login_email';
 
+// O portal trocou o login de e-mail para CPF: o campo #login do template antigo
+// deixou de existir e virou #signInName, com name="CPF" e pattern que só aceita
+// 11 dígitos ou o formato 000.000.000-00. Manter #login como fallback caso a
+// conta ainda caia no template velho.
+const LOGIN_FIELD = '#signInName, #login';
+
 async function reauth() {
   console.log('[Reauth] Iniciando login automático via Puppeteer...');
 
@@ -54,9 +60,13 @@ async function reauth() {
   try {
     await page.goto(`${AUTHORIZE_URL}?${params}`, { waitUntil: 'networkidle2' });
 
-    // Preenche email no campo customizado do template
-    await page.waitForSelector('#login', { timeout: 20000 });
-    await page.type('#login', process.env.TICKET_EMAIL ?? '', { delay: 50 });
+    // Preenche o identificador no campo customizado do template. Hoje é o CPF;
+    // TICKET_EMAIL fica como fallback para o template antigo.
+    const identificador = process.env.TICKET_CPF || process.env.TICKET_EMAIL || '';
+    if (!identificador) throw new Error('TICKET_CPF ausente — o login do portal exige CPF');
+
+    await page.waitForSelector(LOGIN_FIELD, { timeout: 20000 });
+    await page.type(LOGIN_FIELD, identificador, { delay: 50 });
 
     // Preenche senha (injetada pelo B2C no #api)
     await page.waitForSelector('#password', { timeout: 20000 });
