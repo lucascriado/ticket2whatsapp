@@ -25,6 +25,7 @@ src/
   routes/    card.js  webhook.js
   services/  ticket.js  token.js  reauth.js  gmail.js  evolution.js
   jobs/      tokenRefresh.js (30 min)  midnightReauth.js (00:00)
+             webhookGuard.js (10 min)
 ```
 
 ## Deploy
@@ -51,6 +52,24 @@ gravadas no Coolify. Três coisas que já custaram tempo:
   `services/ticket.js` resolve o cartão em tempo de execução pela API da
   carteira, pegando o de `product.type === 'TRE'`. Ela foi removida do ambiente
   e do `.env.example` em 30/08/2026.
+
+## O webhook some quando a instância é recriada (31/08/2026)
+
+Apagar e recriar a instância na Evolution **apaga a linha do webhook junto**,
+mesmo recriando com o nome idêntico (`whatsapp.com`). Foi o que aconteceu ao
+trocar para o número da empresa: `GET /webhook/find/whatsapp.com` devolvia
+`null`, o bot nunca era chamado e parecia que "a Evolution não enxergava" — mas
+ela enxergava, as mensagens estavam todas em `chat/findMessages`.
+
+O registro era feito **uma única vez, no boot**, então só voltaria reiniciando o
+container. Agora `ensureWebhook()` compara o que está gravado com `WEBHOOK_URL`
+e reescreve quando diverge, e o `webhookGuard` repete isso a cada 10 minutos.
+
+Para conferir na mão:
+
+```bash
+curl -H "apikey: $EVOLUTION_API_KEY"   https://evolution.lucascriado.com/webhook/find/whatsapp.com
+```
 
 ## O login do portal mudou (30/08/2026)
 
