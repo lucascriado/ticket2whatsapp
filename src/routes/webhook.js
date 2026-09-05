@@ -55,7 +55,15 @@ router.post('/', async (req, res) => {
   const messageId = key.id;
   const rawJid = key.remoteJid ?? '';
 
-  const remoteJid = (rawJid.endsWith('@lid') && key.remoteJidAlt
+  // O WhatsApp migrou as conversas para @lid. A resposta tem de voltar para o
+  // remoteJid original — é ele que identifica a thread. Responder para o JID de
+  // telefone abre uma conversa paralela que o usuário não vê: a Evolution até
+  // traduz um pelo outro enquanto conhece o contato, mas recriar a instância
+  // apaga esse mapeamento e a tradução para de acontecer.
+  const chatJid = rawJid.trim();
+
+  // O número só serve para a checagem do ALLOWED_NUMBERS.
+  const senderJid = (rawJid.endsWith('@lid') && key.remoteJidAlt
     ? key.remoteJidAlt
     : rawJid).trim();
 
@@ -65,18 +73,20 @@ router.post('/', async (req, res) => {
     ''
   ).trim().toLowerCase();
 
-  if (!remoteJid || remoteJid.endsWith('@lid')) return;
+  if (!chatJid) return;
   if (text !== '/ticket saldo' && text !== '/ticket extrato') return;
 
   const fromMe = key.fromMe === true;
 
-  if (!autorizado(remoteJid, fromMe)) {
-    console.warn(`[Webhook] Recusado: ${remoteJid} fora de ALLOWED_NUMBERS`);
+  if (!autorizado(senderJid, fromMe)) {
+    console.warn(
+      `[Webhook] Recusado: ${senderJid} fora de ALLOWED_NUMBERS (chat=${chatJid})`,
+    );
     return;
   }
 
   console.log(
-    `[Webhook] id=${messageId} chat=${remoteJid} fromMe=${fromMe} comando="${text}"`,
+    `[Webhook] id=${messageId} chat=${chatJid} de=${senderJid} fromMe=${fromMe} comando="${text}"`,
   );
 
   if (messageId) {
@@ -89,10 +99,10 @@ router.post('/', async (req, res) => {
     try {
       const balance = await getCardBalance();
       const formatted = balance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-      await sendMessage(remoteJid, `Saldo Ticket Restaurante: ${formatted}`);
+      await sendMessage(chatJid, `Saldo Ticket Restaurante: ${formatted}`);
     } catch (err) {
       console.error('[Webhook] Erro saldo:', err.message);
-      try { await sendMessage(remoteJid, 'Erro ao consultar saldo. Tente novamente.'); } catch {}
+      try { await sendMessage(chatJid, 'Erro ao consultar saldo. Tente novamente.'); } catch {}
     }
     return;
   }
@@ -100,10 +110,10 @@ router.post('/', async (req, res) => {
   if (text === '/ticket extrato') {
     try {
       const items = await getStatement(15);
-      await sendMessage(remoteJid, formatStatement(items));
+      await sendMessage(chatJid, formatStatement(items));
     } catch (err) {
       console.error('[Webhook] Erro extrato:', err.message);
-      try { await sendMessage(remoteJid, 'Erro ao consultar extrato. Tente novamente.'); } catch {}
+      try { await sendMessage(chatJid, 'Erro ao consultar extrato. Tente novamente.'); } catch {}
     }
   }
 });
