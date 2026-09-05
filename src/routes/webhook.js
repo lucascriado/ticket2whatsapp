@@ -13,7 +13,12 @@ const PERMITIDOS = (process.env.ALLOWED_NUMBERS ?? '')
   .map((n) => n.replace(/\D/g, ''))
   .filter(Boolean);
 
-function autorizado(jid) {
+// O remoteJid identifica a *conversa*, não quem digitou. Quando o comando sai
+// do próprio WhatsApp da instância, o remoteJid é o do destinatário — por isso
+// o dono precisa ser liberado pelo fromMe, senão fica bloqueado no próprio bot
+// ao consultar dentro do chat de outra pessoa.
+function autorizado(jid, fromMe) {
+  if (fromMe) return true;
   if (!PERMITIDOS.length) return true;
   return PERMITIDOS.includes(jid.split('@')[0].replace(/\D/g, ''));
 }
@@ -63,12 +68,16 @@ router.post('/', async (req, res) => {
   if (!remoteJid || remoteJid.endsWith('@lid')) return;
   if (text !== '/ticket saldo' && text !== '/ticket extrato') return;
 
-  if (!autorizado(remoteJid)) {
+  const fromMe = key.fromMe === true;
+
+  if (!autorizado(remoteJid, fromMe)) {
     console.warn(`[Webhook] Recusado: ${remoteJid} fora de ALLOWED_NUMBERS`);
     return;
   }
 
-  console.log(`[Webhook] id=${messageId} from=${remoteJid} comando="${text}"`);
+  console.log(
+    `[Webhook] id=${messageId} chat=${remoteJid} fromMe=${fromMe} comando="${text}"`,
+  );
 
   if (messageId) {
     if (processedIds.has(messageId)) return;
