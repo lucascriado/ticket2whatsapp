@@ -61,4 +61,33 @@ async function ensureWebhook() {
   return true;
 }
 
-module.exports = { sendMessage, ensureWebhook, findWebhook };
+
+// Normaliza o evento da Evolution para a forma que a rota consome.
+// Lógica movida de routes/webhook.js sem alteração de comportamento.
+function parseIncoming(event) {
+  if (event?.event !== 'messages.upsert') return null;
+
+  const key = event.data?.key ?? {};
+  const rawJid = key.remoteJid ?? '';
+
+  // O WhatsApp migrou as conversas para @lid. A resposta tem de voltar para o
+  // remoteJid original — é ele que identifica a thread.
+  const chatJid = rawJid.trim();
+  const senderJid = (rawJid.endsWith('@lid') && key.remoteJidAlt
+    ? key.remoteJidAlt
+    : rawJid).trim();
+
+  return {
+    messageId: key.id,
+    chatJid,
+    senderJid,
+    text: (
+      event.data?.message?.conversation ??
+      event.data?.message?.extendedTextMessage?.text ??
+      ''
+    ).trim().toLowerCase(),
+    fromMe: key.fromMe === true,
+  };
+}
+
+module.exports = { sendMessage, ensureWebhook, findWebhook, parseIncoming };

@@ -4,7 +4,7 @@ const { init: initToken } = require('./services/token');
 const { startTokenRefreshJob } = require('./jobs/tokenRefresh');
 const { startMidnightReauthJob } = require('./jobs/midnightReauth');
 const { startWebhookGuardJob } = require('./jobs/webhookGuard');
-const { ensureWebhook } = require('./services/evolution');
+const { ensureWebhook } = require('./services/wa');
 const PORT = process.env.PORT ?? 3000;
 
 initToken();

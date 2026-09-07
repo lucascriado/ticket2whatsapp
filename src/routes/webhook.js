@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getCardBalance, getStatement } = require('../services/ticket');
-const { sendMessage } = require('../services/evolution');
+const { sendMessage, parseIncoming } = require('../services/wa');
 
 const router = Router();
 const processedIds = new Set();
@@ -49,34 +49,22 @@ router.post('/', async (req, res) => {
 
   const event = req.body;
 
-  if (event.event !== 'messages.upsert') return;
+  // Ligar temporariamente durante a migração: imprime o evento cru uma vez por
+  // entrega, que é como se confere a FORMA do payload do provider novo contra
+  // um evento real, em vez de contra a documentação.
+  if (process.env.WA_LOG_RAW_EVENT === 'true') {
+    console.log('[Webhook] evento cru:', JSON.stringify(event));
+  }
 
-  const key = event.data?.key ?? {};
-  const messageId = key.id;
-  const rawJid = key.remoteJid ?? '';
+  const msg = parseIncoming(event);
+  if (!msg) return;
 
-  // O WhatsApp migrou as conversas para @lid. A resposta tem de voltar para o
-  // remoteJid original — é ele que identifica a thread. Responder para o JID de
-  // telefone abre uma conversa paralela que o usuário não vê: a Evolution até
-  // traduz um pelo outro enquanto conhece o contato, mas recriar a instância
-  // apaga esse mapeamento e a tradução para de acontecer.
-  const chatJid = rawJid.trim();
-
-  // O número só serve para a checagem do ALLOWED_NUMBERS.
-  const senderJid = (rawJid.endsWith('@lid') && key.remoteJidAlt
-    ? key.remoteJidAlt
-    : rawJid).trim();
-
-  const text = (
-    event.data?.message?.conversation ??
-    event.data?.message?.extendedTextMessage?.text ??
-    ''
-  ).trim().toLowerCase();
+  const { messageId, chatJid, senderJid, text } = msg;
 
   if (!chatJid) return;
   if (text !== '/ticket saldo' && text !== '/ticket extrato') return;
 
-  const fromMe = key.fromMe === true;
+  const fromMe = msg.fromMe;
 
   if (!autorizado(senderJid, fromMe)) {
     console.warn(
