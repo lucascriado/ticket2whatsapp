@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { ensureWebhook } = require('../services/evolution');
+const { ensureWebhook } = require('../services/wa');
 
 function startWebhookGuardJob() {
   cron.schedule('*/10 * * * *', async () => {
